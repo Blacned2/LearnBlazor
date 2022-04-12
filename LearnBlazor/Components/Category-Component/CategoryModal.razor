@@ -1,0 +1,58 @@
+﻿@using LearnBlazor.Data
+
+
+<button class="btn btn-danger" @onclick="OpenModal">
+    <span class="oi oi-trash"></span>
+</button>
+
+@if (Opened)
+{
+    <EditForm Model=category >
+        <div class="modal fade show" id="myModal" style="display:block;background-color:#21252994;"
+         aria-modal="true" role="dialog">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">@nameof(category).ToUpper()</h4>
+                        <button @onclick=@ModalCancel type="button" class="btn btn-danger close">&times;</button>
+                    </div>
+                    <div class="modal-body text-right">
+                        <h4>@category.CategoryID</h4>
+                        <InputText DisplayName="CategoryName" @bind-Value=@category.CategoryName></InputText>
+                        <InputText DisplayName="Description" @bind-Value=@category.Description></InputText>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" @onclick="() => DeleteCategory()">Delete</button>
+                        <button type="button" class="btn btn-info" @onclick="@ModalCancel">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+}
+
+
+@code {
+
+    [Parameter]
+    public EventCallback<bool> OnClose { get; set; }
+    [Parameter]
+    public Category category { get; set; }
+    public bool Opened { get; set; }
+    public void OpenModal()
+    {
+        Opened = true;
+    }
+    private Task ModalCancel()
+    {
+        Opened = false;
+        return OnClose.InvokeAsync(false);
+    }
+    private Task DeleteCategory()
+    {
+        Opened = false;
+        _context.Categories.Remove(category);
+        _context.SaveChanges();
+        return OnClose.InvokeAsync(true);
+    }
+}

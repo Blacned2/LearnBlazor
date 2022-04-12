@@ -1,0 +1,223 @@
+﻿@page "/categories"
+@using Faker
+@using LearnBlazor.AppService.Interface
+@using LearnBlazor.AutoMapper.Dtos
+@using LearnBlazor.Data
+@inject NotificationService NotificationService
+@inject ICategoryService _categoryService
+@inject TooltipService tooltipService
+
+<RadzenAccordion>
+    <Items>
+        <RadzenAccordionItem Text="Table 1" Icon="account_balance_wallet">
+
+            <h3 class="col-12">Category List</h3>
+            <RadzenButton Click=NewCategory Text="NEW" class="btn btn-white col-2" Style="font-size:15px"></RadzenButton>
+            <RadzenButton Click=FakeDataGen Text="Generate Data" class='btn btn-info col-2' Style="font-size:15px"></RadzenButton>
+            <div class="col-6 mt-3 mb-3">
+                <h5>Pick a Date</h5>
+                <RadzenDatePicker @bind-Value=@pickedDate DateFormat="d" Class="w-100" />
+            </div>
+
+
+            <RadzenDataGrid class="mt-1 card" AllowColumnResize="true" FilterMode="FilterMode.Advanced"
+                            AllowSorting="true" AllowPaging="true" PagerHorizontalAlign="HorizontalAlign.Center"
+                            Data="@categories" TItem="Category" ColumnWidth="300px" LogicalFilterOperator="LogicalFilterOperator.Or">
+                <Columns>
+                    <RadzenDataGridColumn TItem="Category" Property="CategoryID" Title="ID" Width="140px" />
+                    <RadzenDataGridColumn TItem="Category" Property="CategoryName" Title="Name" Width="140px" />
+                    <RadzenDataGridColumn TItem="Category" Property="Description" Title="Desc" Width="140px" />
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenAccordionItem>
+
+        <RadzenAccordionItem Selected Text="Table 2" Icon="account_box">
+            <RadzenCard>
+
+                <div class="container">
+                    <div class="row">
+                        <div class="col-6 g-0">
+                            <RadzenButton Click=NewCategory MouseEnter="@(args => ShowTooltip(args,"New Category"))"
+                                          Text="Add New" Icon="add_circle_outline" ButtonStyle="ButtonStyle.Primary" class="bg-primary" Style="font-weight:bold"></RadzenButton>
+                            <RadzenButton Click=FakeDataGen MouseEnter="@(args => ShowTooltip(args,"Generate Data"))"
+                                          Text="Generate Data" class='btn bg-warning' Style="font-weight:bold"></RadzenButton>
+                        </div>
+                        <div class="col-6 g-0 justify-content-end d-flex">
+                            <RadzenButton Disabled="@(selectedCategories == null || selectedCategories.Count < 1)" Click=DeleteSelected
+                                          MouseEnter="@(args => ShowTooltip(args,"Delete"))" Text="Delete" class='btn btn-danger text-right' Style="color:black;font-weight:bold"></RadzenButton>
+                        </div>
+                        <div class="col-1 mt-3 g-0">
+                            Row Size<RadzenDropDown AllowClear="false" TValue=int @bind-Value=pageSize Class="w-100"
+                                                    Data=pageSizeOptions
+                                                    Change=@(value => PageSizeChanged(value)) />
+                        </div>
+                    </div>
+                </div>
+
+
+                <RadzenDataGrid class="mt-1 card"
+                                AllowRowSelectOnRowClick="@allowRowSelectOnRowClick" AllowFiltering="true"
+                                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowPaging="false"
+                                AllowSorting="true" Data="@categories" TItem="Category" ColumnWidth="200px"
+                                SelectionMode="DataGridSelectionMode.Multiple" @bind-Value=@selectedCategories>
+                    <Columns>
+                        <RadzenDataGridColumn TItem="Category" Width="40px" Sortable="false" Filterable="false">
+                            <HeaderTemplate>
+                                <RadzenCheckBox TriState="false" TValue="bool" Value="@(categories.Any(i => selectedCategories != null && selectedCategories.Contains(i)))"
+                                                Change="@(args => selectedCategories = args ? categories.ToList() : null)" />
+                            </HeaderTemplate>
+                            <Template Context="data">
+                                <RadzenCheckBox TriState="false" Value="@(selectedCategories != null && selectedCategories.Contains(data))"
+                                                TValue="bool" Change=@(args => { if(!allowRowSelectOnRowClick) { grid.SelectRow(data); }}) />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="Category" Property="CategoryID" Title="ID" />
+                        <RadzenDataGridColumn TItem="Category" Property="CategoryName" Title="Name" />
+                        <RadzenDataGridColumn TItem="Category" Property="Description" Title="Desc" />
+                    </Columns>
+                </RadzenDataGrid>
+                <RadzenPager ShowPagingSummary="true" PagingSummaryFormat="@pagingSummaryFormat" HorizontalAlign="HorizontalAlign.Right" Count="count" PageSize="@pageSize" PageNumbersCount="5" PageChanged="@PageChanged" />
+            </RadzenCard>
+        </RadzenAccordionItem>
+    </Items>
+</RadzenAccordion>
+
+@code {
+
+    string pagingSummaryFormat = "Displaying page {0} of {1} (total {2} records)";
+
+    int pageSize = 6;
+
+    int count;
+
+    bool allowRowSelectOnRowClick = true;
+
+    List<Category>? categories { get; set; }
+
+    int[] pageSizeOptions = new int[] { 6, 8, 10, 20, 30 };
+
+    IList<Category>? selectedCategories;
+
+    DateTime pickedDate { get; set; } = DateTime.Now;
+
+    RadzenDataGrid<Category>? grid;
+
+    TooltipOptions options = new TooltipOptions() { Style = "color:white;background-color:black", Duration = 500, Position = TooltipPosition.Bottom };
+
+    void ShowTooltip(ElementReference elementReference, string text) => tooltipService.Open(elementReference, text, options);
+
+    void DeleteSelected()
+    {
+        if (selectedCategories != null || !selectedCategories.Any())
+        {
+            foreach (var item in selectedCategories)
+            {
+                _categoryService.Delete(item.CategoryID);
+            }
+            count = _categoryService.CategorySize();
+            GetCategories(0, pageSize);
+            NotificationMessage successMsj = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "İşlem başarıyla gerçekleştirildi",
+                    Duration = 3000
+                };
+            ShowNotification(successMsj);
+            selectedCategories = null;
+        }
+        else
+        {
+            NotificationMessage errorMsj = new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "İşlem gerçekleştirilemedi",
+                    Duration = 3000
+                };
+            ShowNotification(errorMsj);
+        }
+
+    }
+
+    void PageSizeChanged(object value)
+    {
+        pageSize = Convert.ToInt32(value);
+        GetCategories(0, pageSize);
+    }
+
+    void ShowNotification(NotificationMessage message)
+    {
+        NotificationService.Notify(message);
+    }
+
+    void PageChanged(PagerEventArgs args)
+    {
+        GetCategories(args.Skip, args.Top);
+    }
+
+    void GetCategories(int skip, int take)
+    {
+        var result = _categoryService.GetCategories(skip, take);
+        if (result == null)
+        {
+            throw new ArgumentNullException();
+        }
+        else
+        {
+            categories = result.ResultObject;
+        }
+    }
+
+    void OnChange(object value, string name)
+    {
+        var str = value is IEnumerable<object> ? string.Join(", ", (IEnumerable<object>)value) : value;
+    }
+
+    protected override void OnInitialized()
+    {
+        count = _categoryService.CategorySize();
+        GetCategories(0, pageSize);
+    }
+
+    //async Task OnDeleteDialogClose(bool accepted)
+    //{
+    //    if (accepted)
+    //    {
+    //        GetCategories(0, pageSize);
+    //    }
+    //    StateHasChanged();
+    //}
+
+    //void OpenDeleteDialog()
+    //{
+    //    StateHasChanged();
+    //}
+
+    void FakeDataGen()
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            CategoryDto cat = new CategoryDto();
+            cat.CategoryName = Faker.StringFaker.AlphaNumeric(5);
+            cat.Description = Faker.StringFaker.AlphaNumeric(20);
+            _categoryService.CreateOrEdit(cat);
+        }
+        count = _categoryService.CategorySize();
+        GetCategories(0, pageSize);
+        NotificationMessage successMsj = new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Success",
+                Detail = "İşlem başarıyla gerçekleştirildi",
+                Duration = 3000
+            };
+        ShowNotification(successMsj);
+    }
+
+    void NewCategory()
+    {
+        navManager.NavigateTo("/category/");
+    }
+}
+

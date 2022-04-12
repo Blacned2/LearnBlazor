@@ -1,0 +1,90 @@
+﻿@page "/category"
+@page "/category/{id:int}"
+
+@using LearnBlazor.Data
+
+
+<div class="card">
+    <div class="card-header">
+        <h4 class="card-title">Horizontal Form</h4>
+    </div>
+    <div class="card-body col-12">
+        <EditForm Model="@category" class="form-horizontal">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class=" row mb-4">
+                <label class="col-md-3 form-label">Category Name</label>
+                <div class="col-md-9">
+                    <InputText type="text" class="form-control" @bind-Value="category.CategoryName" />
+                </div>
+            </div>
+            <div class=" row mb-4">
+                <label for="category.Description" class="col-md-3 form-label">Description</label>
+                <div class="col-md-9">
+                    <InputText type="text" class="form-control" @bind-Value="@category.Description" />
+                </div>
+            </div>
+            <div class="mb-0 mt-4 row justify-content-end">
+                <div class="col-md-8">
+                    <a @onclick="SaveCategory" type="submit" class="btn btn-primary">
+                        <span class="oi oi-check" aria-hidden="true"></span> Save
+                    </a>
+                    @if (category.CategoryID != 0)
+                    {
+                        <a @onclick="DeleteCategory" href="/categories" class="btn btn-danger ms-1">
+                            <span class="oi oi-trash" aria-hidden="true"></span> Delete
+                        </a>
+                    }
+                </div>
+                <div class="col-md-1" style="text-align:right">
+                    <a href="/categories" class="btn btn-warning text-right">Cancel</a>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+
+
+    [Parameter]
+    public int? Id { get; set; }
+
+    Category? category = new Category();
+
+    protected override void OnInitialized()
+    {
+        if (Id != null)
+        {
+            category = (from u in _context.Categories
+                        where u.CategoryID == Id
+                        select u).FirstOrDefault();
+        }
+        else
+        {
+            category.CategoryName = "";
+            category.Description = "";
+        }
+    }
+
+    protected void DeleteCategory()
+    {
+        _context.Remove(category);
+        _context.SaveChanges();
+
+    }
+    protected void SaveCategory()
+    {
+        if (category.CategoryName.Length > 2 && category.Description.Length > 4)
+        {
+            _context.Update(category);
+            _context.SaveChanges();
+            navManager.NavigateTo("/categories");
+        }
+        else
+        {
+
+        }
+    }
+    
+}
